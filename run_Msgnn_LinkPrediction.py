@@ -11,7 +11,7 @@ from sklearn import preprocessing
 import statistics
 import read_datasets_additional
 
-from magnet import ChebNet_Edge
+from msgnn import MSGNN_link_prediction
 
 dataset_name = 'ucsocial' # ['telegram', 'bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+', 'ucsocial'] + synth_datasets
 task = 'three_class_digraph' # ['existence', 'three_class_digraph', 'weight_prediction']
@@ -56,8 +56,8 @@ else:
             data.edge_weight = torch.tensor(preprocessing.MaxAbsScaler().fit_transform((data.edge_weight.reshape(-1, 1)))).T.squeeze()
     except:
         raise Exception("Wrong dataset.")
-
-log_path = './tmp/res/Edge_MagNet_' + dataset_name
+    
+log_path = './tmp/res/Edge_Msgnn_' + dataset_name
 if normalize is True:
     log_path += '_normalized'
 Path(log_path).mkdir(parents=True, exist_ok=True)
@@ -80,7 +80,6 @@ else:
 nb_epochs = [0 for _ in range(360)]
 it_epochs = -1
 
-
 for lr in [0.001, 0.005, 0.01, 0.05]:
     for num_filter in [16, 32, 64]:
         for layer in [2, 4, 8]:
@@ -98,26 +97,17 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                 # get hermitian laplacian
                 ########################################
                 edges = datasets[i]['graph']
-                f_node, e_node = edges[0], edges[1]
 
-                L = utils.hermitian_decomp_sparse(f_node, e_node, size, gcn_appr=True, edge_weight=datasets[i]['weights'])
-                L = utils.cheb_poly_sparse(L, K=1)
-                L_img = []
-                L_real = []
-                for ind_L in range(len(L)):
-                    L_img.append(utils.sparse_mx_to_torch_sparse_tensor(L[ind_L].imag))
-                    L_real.append(utils.sparse_mx_to_torch_sparse_tensor(L[ind_L].real))
-                
                 X_real = utils.in_out_degree(edges, size, datasets[i]['weights'])
                 X_img = X_real.clone()
-
+                    
                 ########################################
                 # initialize model and load dataset
                 ########################################
-                model = ChebNet_Edge(in_c=X_real.size(-1), L_norm_real=L_real, L_norm_imag=L_img, \
-                                     num_filter=num_filter, K=1, label_dim=label_dim, layer=layer, activation=True, dropout=dropout,\
-                                     weight_prediction=task == 'weight_prediction')
-
+                model = MSGNN_link_prediction(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, \
+                            trainable_q = False, layer=layer, dropout=dropout, normalization='sym', cached=False,\
+                            weight_prediction=task == 'weight_prediction')
+    
                 opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
 
                 y_train = datasets[i]['train']['label']
@@ -151,7 +141,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                     ####################
                     train_loss, train_acc = 0.0, 0.0
                     model.train()
-                    out = model(X_real, X_img, train_index)
+                    out = model(X_real, X_img, edge_index=edges, query_edges=train_index, edge_weight=datasets[i]['weights'])
                     if task == 'weight_prediction':
                         pred_label = out.T
                         train_loss = torch.nn.functional.mse_loss(out.T, y_train)
@@ -168,7 +158,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                     ####################
                     val_loss, val_acc = 0.0, 0.0
                     model.eval()
-                    out = model(X_real, X_img, val_index)
+                    out = model(X_real, X_img, edge_index=edges, query_edges=val_index, edge_weight=datasets[i]['weights'])
                     if task == 'weight_prediction':
                         pred_label = out.T
                         val_loss = torch.nn.functional.mse_loss(out.T, y_val)
@@ -187,7 +177,6 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                         best_test_err = save_perform_err
                         torch.save(model.state_dict(), log_path + '/model_err'+str(i)+current_params+'.t7')
                     if save_perform_acc >= best_test_acc:
-                        #early_stopping = 0
                         best_test_acc = save_perform_acc
                         torch.save(model.state_dict(), log_path + '/model_acc'+str(i)+current_params+'.t7')
                     else:
@@ -223,15 +212,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
             for i in range(10):
                 it_epochs += 1
                 edges = datasets[i]['graph']
-                f_node, e_node = edges[0], edges[1]
-                    
-                L = utils.hermitian_decomp_sparse(f_node, e_node, size, gcn_appr=True, edge_weight=datasets[i]['weights'])
-                L = utils.cheb_poly_sparse(L, K=1)
-                L_img = []
-                L_real = []
-                for ind_L in range(len(L)):
-                    L_img.append(utils.sparse_mx_to_torch_sparse_tensor(L[ind_L].imag))
-                    L_real.append(utils.sparse_mx_to_torch_sparse_tensor(L[ind_L].real))
+                
                 X_real = utils.in_out_degree(edges, size, datasets[i]['weights'])
                 X_img = X_real.clone()
 
@@ -242,34 +223,32 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                     y_val = y_val.long()
                 val_index = datasets[i]['val']['edges']
 
-                model = ChebNet_Edge(in_c=X_real.size(-1), L_norm_real=L_real, L_norm_imag=L_img, \
-                                     num_filter=num_filter, K=1, label_dim=label_dim, layer=layer, activation=True, dropout=dropout, \
-                                     weight_prediction=task == 'weight_prediction')
+                model = MSGNN_link_prediction(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, \
+                            trainable_q = False, layer=layer, dropout=dropout, normalization='sym', cached=False, \
+                            weight_prediction=task == 'weight_prediction') 
                 model.load_state_dict(torch.load(log_path + '/model_err'+str(i)+current_params+'.t7'))
                 model.eval()
-                out = model(X_real, X_img, val_index)
+                out = model(X_real, X_img, edge_index=edges, query_edges=val_index, edge_weight=datasets[i]['weights'])                   
                 if task == 'weight_prediction':
                     pred_label = out.T
                     i_validation_error_model_loss[i] = torch.nn.functional.mse_loss(out.T, y_val).detach().item()
                 else:
                     pred_label = out.max(dim = 1)[1]
                     i_validation_error_model_loss[i] = torch.nn.functional.nll_loss(out, y_val).detach().item()
-
                 i_validation_error_model_acc[i] = utils.acc(pred_label, y_val, weighted=task == 'weight_prediction')
                 
-                model = ChebNet_Edge(in_c=X_real.size(-1), L_norm_real=L_real, L_norm_imag=L_img, \
-                                     num_filter=num_filter, K=1, label_dim=label_dim, layer=layer, activation=True, dropout=dropout, \
-                                     weight_prediction=task == 'weight_prediction')
+                model = MSGNN_link_prediction(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, \
+                            trainable_q = False, layer=layer, dropout=dropout, normalization='sym', cached=False, \
+                            weight_prediction=task == 'weight_prediction')
                 model.load_state_dict(torch.load(log_path + '/model_acc'+str(i)+current_params+'.t7'))
                 model.eval()
-                out = model(X_real, X_img, val_index)
+                out = model(X_real, X_img, edge_index=edges, query_edges=val_index, edge_weight=datasets[i]['weights'])    
                 if task == 'weight_prediction':
                     pred_label = out.T
                     i_validation_acc_model_loss[i] = torch.nn.functional.mse_loss(out.T, y_val).detach().item()
                 else:
                     pred_label = out.max(dim = 1)[1]
                     i_validation_acc_model_loss[i] = torch.nn.functional.nll_loss(out, y_val).detach().item()
-
                 i_validation_acc_model_acc[i] = utils.acc(pred_label, y_val, weighted=task == 'weight_prediction')
 
 
@@ -330,15 +309,7 @@ log_testing_err_overall = ['' for _ in range(10)]
 log_testing_acc_overall = ['' for _ in range(10)]
 for i in range(10):
     edges = datasets[i]['graph']
-    f_node, e_node = edges[0], edges[1]
-    L = utils.hermitian_decomp_sparse(f_node, e_node, size, gcn_appr=True, edge_weight=datasets[i]['weights'])
-    L = utils.cheb_poly_sparse(L, K=1)
-    L_img = []
-    L_real = []
-    for ind_L in range(len(L)):
-        L_img.append(utils.sparse_mx_to_torch_sparse_tensor(L[ind_L].imag))
-        L_real.append(utils.sparse_mx_to_torch_sparse_tensor(L[ind_L].real))
-                        
+                   
     X_real = utils.in_out_degree(edges, size, datasets[i]['weights'])
     X_img = X_real.clone()
 
@@ -354,12 +325,12 @@ for i in range(10):
     val_index = datasets[i]['val']['edges']
     test_index = datasets[i]['test']['edges']
 
-    model = ChebNet_Edge(in_c=X_real.size(-1), L_norm_real=L_real, L_norm_imag=L_img, \
-                         num_filter=best_error_model_num_filter, K=1, label_dim=label_dim, layer=best_error_model_layer, activation=True, dropout=dropout,\
-                         weight_prediction=task == 'weight_prediction')
+    model = MSGNN_link_prediction(K=1, num_features=2, hidden=best_error_model_num_filter, label_dim=label_dim, \
+                            trainable_q = False, layer=best_error_model_layer, dropout=dropout, normalization='sym', cached=False, \
+                            weight_prediction=task == 'weight_prediction')
     model.load_state_dict(torch.load(log_path + '/model_err'+str(i)+best_error_model_params+'.t7'))
     model.eval()
-    out = model(X_real, X_img, val_index)
+    out = model(X_real, X_img, edge_index=edges, query_edges=val_index, edge_weight=datasets[i]['weights'])
     if task == 'weight_prediction':
         pred_label = out.T
         val_loss_err = torch.nn.functional.mse_loss(out.T, y_val).detach().item()
@@ -367,7 +338,7 @@ for i in range(10):
         pred_label = out.max(dim = 1)[1]
         val_loss_err = torch.nn.functional.nll_loss(out, y_val).detach().item()
     val_acc_err = utils.acc(pred_label, y_val, weighted=task == 'weight_prediction')
-    out = model(X_real, X_img, test_index)
+    out = model(X_real, X_img, edge_index=edges, query_edges=test_index, edge_weight=datasets[i]['weights'])   
     if task == 'weight_prediction':
         pred_label = out.T
         test_loss_err = torch.nn.functional.mse_loss(out.T, y_test).detach().item()
@@ -387,12 +358,12 @@ for i in range(10):
         file.write(log_testing_err_overall[i])
         file.write('\n')
 
-    model = ChebNet_Edge(in_c=X_real.size(-1), L_norm_real=L_real, L_norm_imag=L_img, \
-                         num_filter=best_acc_model_num_filter, K=1, label_dim=label_dim, layer=best_acc_model_layer, activation=True, dropout=dropout,\
-                         weight_prediction=task == 'weight_prediction')
+    model = MSGNN_link_prediction(K=1, num_features=2, hidden=best_acc_model_num_filter, label_dim=label_dim, \
+                            trainable_q = False, layer=best_acc_model_layer, dropout=dropout, normalization='sym', cached=False, \
+                            weight_prediction=task == 'weight_prediction')
     model.load_state_dict(torch.load(log_path + '/model_acc'+str(i)+best_acc_model_params+'.t7'))
     model.eval()
-    out = model(X_real, X_img, val_index)
+    out = model(X_real, X_img, edge_index=edges, query_edges=val_index, edge_weight=datasets[i]['weights'])   
     if task == 'weight_prediction':
         pred_label = out.T
         val_loss_acc = torch.nn.functional.mse_loss(out.T, y_val).detach().item()
@@ -400,7 +371,7 @@ for i in range(10):
         pred_label = out.max(dim = 1)[1]
         val_loss_acc = torch.nn.functional.nll_loss(out, y_val).detach().item()
     val_acc_acc = utils.acc(pred_label, y_val, weighted=task == 'weight_prediction')
-    out = model(X_real, X_img, test_index)
+    out = model(X_real, X_img, edge_index=edges, query_edges=test_index, edge_weight=datasets[i]['weights'])   
     if task == 'weight_prediction':
         pred_label = out.T
         test_loss_acc = torch.nn.functional.mse_loss(out.T, y_test).detach().item()

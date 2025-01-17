@@ -9,12 +9,14 @@ import utils
 from pathlib import Path
 from sklearn import preprocessing
 import statistics
+import read_datasets_additional
+
 from sigmanet import SigMaNet_link_prediction_one_laplacian
 
-dataset_name = 'telegram' # ['telegram', 'bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+'] + synth_datasets
-task = 'weight_prediction' # ['existence', 'three_class_digraph', 'weight_prediction']
+dataset_name = 'ucsocial' # ['telegram', 'bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+', 'ucsocial'] + synth_datasets
+task = 'existence' # ['existence', 'three_class_digraph', 'weight_prediction']
 dropout = 0.5
-normalize = False
+normalize = True
 epochs = 1000
 early_stopping_threshold = 200
 
@@ -31,16 +33,21 @@ synth_filenames = ['dataset_nodes500_alpha0.05_beta0.2', 'dataset_nodes500_alpha
                    'dataset_nodes500_alpha0.1_beta0.2_undirected-percentage0.7_opposite-signFalse_negative-edgesFalse_directedTrue']
 
 if dataset_name in ['telegram']:
-    data = load_directed_real_data(dataset=dataset_name, name=dataset_name)
+    data = load_directed_real_data(dataset=dataset_name, root='./tmp/telegram/', name=dataset_name)
     if normalize == True:
         data.edge_weight = torch.exp(-1/data.edge_weight)
-elif dataset_name in ['bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+']:
+elif dataset_name in ['bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+', 'ucsocial']:
     if dataset_name == 'bitcoin_alpha' or dataset_name == 'bitcoin_otc':
         data = utils.load_signed_real_data_no_negative(dataset=dataset_name, root='./tmp/', keep_negatives=True)
-    else:
+    elif dataset_name == 'bitcoin_alpha+' or dataset_name == 'bitcoin_otc+':
         data = utils.load_signed_real_data_no_negative(dataset=dataset_name[:-1], root='./tmp/', keep_negatives=False)
+    elif dataset_name == 'ucsocial':
+        data = read_datasets_additional.ReadDataset(root='./tmp/', name=dataset_name)._data
     if normalize == True:
-        data.edge_weight = torch.tensor(preprocessing.MaxAbsScaler().fit_transform(data.edge_weight.reshape(-1, 1))).T.squeeze()
+        if dataset_name != 'ucsocial':
+            data.edge_weight = torch.tensor(preprocessing.MaxAbsScaler().fit_transform(data.edge_weight.reshape(-1, 1))).T.squeeze()
+        else:
+            data.edge_weight = torch.exp(-1/data.edge_weight)
 else:
     synth_filename = synth_filenames[synth_datasets.index(dataset_name)]
     try:
