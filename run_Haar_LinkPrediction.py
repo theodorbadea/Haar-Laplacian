@@ -13,8 +13,14 @@ import read_datasets_additional
 
 from haar import ChebNet_Edge
 
-dataset_name = 'ucsocial' # ['telegram', 'bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+', 'ucsocial] + synth_datasets
-task = 'weight_prediction' # ['existence', 'three_class_digraph', 'weight_prediction']
+randomseed = 0
+random.seed(randomseed)
+torch.manual_seed(randomseed)
+np.random.seed(randomseed)
+torch.use_deterministic_algorithms(True)
+
+dataset_name = 'telegram' # ['telegram', 'bitcoin_alpha', 'bitcoin_otc', 'bitcoin_alpha+', 'bitcoin_otc+', 'ucsocial] + synth_datasets
+task = 'existence' # ['existence', 'three_class_digraph', 'weight_prediction']
 dropout = 0.5
 normalize = True
 epochs = 1000
@@ -66,7 +72,8 @@ edge_index = data.edge_index
 size = torch.max(edge_index).item() + 1
 data.num_nodes = size
 datasets = utils.link_class_split_new(data, prob_val=0.05, prob_test=0.15, splits=10, task=task, \
-                                      maintain_connect=True, keep_negatives=dataset_name != 'bitcoin_alpha+' and dataset_name != 'bitcoin_otc+')
+                                      maintain_connect=True, keep_negatives=dataset_name != 'bitcoin_alpha+' and dataset_name != 'bitcoin_otc+', \
+                                      seed=randomseed)
 
 if task == 'weight_prediction':
     label_dim = 1
@@ -86,9 +93,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
             current_params = 'lr_' + str(lr) + '_num_filter_' + str(num_filter) + '_layer_' + str(layer)
             print(current_params)
 
-            random.seed(0)
-            torch.manual_seed(0)
-            np.random.seed(0)
+            torch.manual_seed(randomseed)
 
             for i in range(10):
                 it_epochs += 1
