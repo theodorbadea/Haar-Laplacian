@@ -49,7 +49,7 @@ class MSConv(MessagePassing):
     Args:
         in_channels (int): Size of each input sample.
         out_channels (int): Size of each output sample.
-        K (int): Chebyshev filter size :math:`K`.
+        K (int): Chebyshev filter size minus 1 :math:`K`.
         q (float, optional): Initial value of the phase parameter, 0 <= q <= 0.25. Default: 0.25.
         trainable_q (bool, optional): whether to set q to be trainable or not. (default: :obj:`False`)
         normalization (str, optional): The normalization scheme for the magnetic
@@ -92,7 +92,7 @@ class MSConv(MessagePassing):
             self.q = Parameter(torch.Tensor(1).fill_(q))
         else:
             self.q = q
-        self.weight = Parameter(torch.Tensor(K, in_channels, out_channels))
+        self.weight = Parameter(torch.Tensor(K+1, in_channels, out_channels))
 
         if bias:
             self.bias = Parameter(torch.Tensor(out_channels))
@@ -277,7 +277,7 @@ class MSGNN_link_prediction(nn.Module):
     Args:
         num_features (int): Size of each input sample.
         hidden (int, optional): Number of hidden channels.  Default: 2.
-        K (int, optional): Order of the Chebyshev polynomial.  Default: 2.
+        K (int, optional): Order of the Chebyshev polynomial.  Default: 1.
         q (float, optional): Initial value of the phase parameter, 0 <= q <= 0.25. Default: 0.25.
         label_dim (int, optional): Number of output classes.  Default: 2.
         activation (bool, optional): whether to use activation function or not. (default: :obj:`True`)
@@ -298,7 +298,7 @@ class MSGNN_link_prediction(nn.Module):
             learning scenarios. (default: :obj:`False`)
         absolute_degree (bool, optional): Whether to calculate the degree matrix with respect to absolute entries of the adjacency matrix. (default: :obj:`True`)
     """
-    def __init__(self, num_features:int, hidden:int=2, q:float=0.25, K:int=2, label_dim:int=2, \
+    def __init__(self, num_features:int, hidden:int=2, q:float=0.25, K:int=1, label_dim:int=2, \
         activation:bool=True, trainable_q:bool=False, layer:int=2, dropout:float=0.5, normalization:str='sym', cached: bool=False, absolute_degree: bool=True,
         weight_prediction:bool = False):
         super(MSGNN_link_prediction, self).__init__()
