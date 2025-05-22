@@ -109,7 +109,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                 ########################################
                 # initialize model and load dataset
                 ########################################
-                model = MSGNN_link_prediction(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, \
+                model = MSGNN_link_prediction(K=1, num_features=X_real.size(-1), hidden=num_filter, label_dim=label_dim, \
                             trainable_q = False, layer=layer, dropout=dropout, normalization='sym', cached=False,\
                             weight_prediction=task == 'weight_prediction')
     
@@ -228,7 +228,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                     y_val = y_val.long()
                 val_index = datasets[i]['val']['edges']
 
-                model = MSGNN_link_prediction(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, \
+                model = MSGNN_link_prediction(K=1, num_features=X_real.size(-1), hidden=num_filter, label_dim=label_dim, \
                             trainable_q = False, layer=layer, dropout=dropout, normalization='sym', cached=False, \
                             weight_prediction=task == 'weight_prediction') 
                 model.load_state_dict(torch.load(log_path + '/model_err'+str(i)+current_params+'.t7'))
@@ -242,7 +242,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                     i_validation_error_model_loss[i] = torch.nn.functional.nll_loss(out, y_val).detach().item()
                 i_validation_error_model_acc[i] = utils.acc(pred_label, y_val, weighted=task == 'weight_prediction')
                 
-                model = MSGNN_link_prediction(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, \
+                model = MSGNN_link_prediction(K=1, num_features=X_real.size(-1), hidden=num_filter, label_dim=label_dim, \
                             trainable_q = False, layer=layer, dropout=dropout, normalization='sym', cached=False, \
                             weight_prediction=task == 'weight_prediction')
                 model.load_state_dict(torch.load(log_path + '/model_acc'+str(i)+current_params+'.t7'))
@@ -330,7 +330,7 @@ for i in range(10):
     val_index = datasets[i]['val']['edges']
     test_index = datasets[i]['test']['edges']
 
-    model = MSGNN_link_prediction(K=1, num_features=2, hidden=best_error_model_num_filter, label_dim=label_dim, \
+    model = MSGNN_link_prediction(K=1, num_features=X_real.size(-1), hidden=best_error_model_num_filter, label_dim=label_dim, \
                             trainable_q = False, layer=best_error_model_layer, dropout=dropout, normalization='sym', cached=False, \
                             weight_prediction=task == 'weight_prediction')
     model.load_state_dict(torch.load(log_path + '/model_err'+str(i)+best_error_model_params+'.t7'))
@@ -363,7 +363,7 @@ for i in range(10):
         file.write(log_testing_err_overall[i])
         file.write('\n')
 
-    model = MSGNN_link_prediction(K=1, num_features=2, hidden=best_acc_model_num_filter, label_dim=label_dim, \
+    model = MSGNN_link_prediction(K=1, num_features=X_real.size(-1), hidden=best_acc_model_num_filter, label_dim=label_dim, \
                             trainable_q = False, layer=best_acc_model_layer, dropout=dropout, normalization='sym', cached=False, \
                             weight_prediction=task == 'weight_prediction')
     model.load_state_dict(torch.load(log_path + '/model_acc'+str(i)+best_acc_model_params+'.t7'))

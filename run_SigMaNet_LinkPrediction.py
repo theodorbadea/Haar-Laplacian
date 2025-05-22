@@ -111,7 +111,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                 ########################################
                 # initialize model and load dataset
                 ########################################
-                model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, dropout=dropout,\
+                model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=X_real.size(-1), hidden=num_filter, label_dim=label_dim, dropout=dropout,\
                             i_complex = False,  layer=layer, follow_math=True, gcn=True, net_flow=True, unwind=True, edge_index=edge_index,\
                             norm_real=norm_real, norm_imag=norm_imag, weight_prediction=task == 'weight_prediction')
 
@@ -234,7 +234,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                 edge_index, norm_real, norm_imag = utils.process_magnetic_laplacian(edge_index=edges, gcn=True, net_flow=True,\
                                     x_real=X_real, edge_weight=datasets[i]['weights'], normalization = 'sym', return_lambda_max = False)
                 
-                model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, dropout=dropout,\
+                model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=X_real.size(-1), hidden=num_filter, label_dim=label_dim, dropout=dropout,\
                             i_complex = False,  layer=layer, follow_math=True, gcn=True, net_flow=True, unwind=True, edge_index=edge_index,\
                             norm_real=norm_real, norm_imag=norm_imag, weight_prediction=task == 'weight_prediction')
 
@@ -251,7 +251,7 @@ for lr in [0.001, 0.005, 0.01, 0.05]:
                 i_validation_error_model_acc[i] = utils.acc(pred_label, y_val, weighted=task == 'weight_prediction')
                 
 
-                model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=2, hidden=num_filter, label_dim=label_dim, dropout=dropout,\
+                model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=X_real.size(-1), hidden=num_filter, label_dim=label_dim, dropout=dropout,\
                             i_complex = False,  layer=layer, follow_math=True, gcn=True, net_flow=True, unwind=True, edge_index=edge_index,\
                             norm_real=norm_real, norm_imag=norm_imag, weight_prediction=task == 'weight_prediction')
 
@@ -345,7 +345,7 @@ for i in range(10):
     val_index = datasets[i]['val']['edges']
     test_index = datasets[i]['test']['edges']
 
-    model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=2, hidden=best_error_model_num_filter, label_dim=label_dim, dropout=dropout,\
+    model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=X_real.size(-1), hidden=best_error_model_num_filter, label_dim=label_dim, dropout=dropout,\
                 i_complex = False,  layer=best_error_model_layer, follow_math=True, gcn=True, net_flow=True, unwind=True, edge_index=edge_index,\
                 norm_real=norm_real, norm_imag=norm_imag, weight_prediction=task == 'weight_prediction')
     model.load_state_dict(torch.load(log_path + '/model_err'+str(i)+best_error_model_params+'.t7'))
@@ -378,7 +378,7 @@ for i in range(10):
         file.write(log_testing_err_overall[i])
         file.write('\n')
 
-    model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=2, hidden=best_acc_model_num_filter, label_dim=label_dim, dropout=dropout,\
+    model = SigMaNet_link_prediction_one_laplacian(K=1, num_features=X_real.size(-1), hidden=best_acc_model_num_filter, label_dim=label_dim, dropout=dropout,\
                 i_complex = False,  layer=best_acc_model_layer, follow_math=True, gcn=True, net_flow=True, unwind=True, edge_index=edge_index,\
                 norm_real=norm_real, norm_imag=norm_imag, weight_prediction=task == 'weight_prediction')
     model.load_state_dict(torch.load(log_path + '/model_acc'+str(i)+best_acc_model_params+'.t7'))
