@@ -125,3 +125,41 @@ class ChebNet_Edge(nn.Module):
         if self.weight_prediction == False:
             x = F.log_softmax(x, dim=1)
         return x
+
+class ChebNet(nn.Module):
+    def __init__(self, in_c, L_norm_real, L_norm_imag, num_filter=2, K=2, label_dim=2, activation=False, layer=2, dropout=False):
+        """
+        :param in_c: int, number of input channels.
+        :param hid_c: int, number of hidden channels.
+        :param K: for cheb series
+        :param L_norm_real, L_norm_imag: normalized laplacian
+        """
+        super(ChebNet, self).__init__()
+
+        chebs = [ChebConv(in_c=in_c, out_c=num_filter, K=K, L_norm_real=L_norm_real, L_norm_imag=L_norm_imag)]
+        if activation:
+            chebs.append(complex_relu_layer())
+
+        for i in range(1, layer):
+            chebs.append(ChebConv(in_c=num_filter, out_c=num_filter, K=K, L_norm_real=L_norm_real, L_norm_imag=L_norm_imag))
+            if activation:
+                chebs.append(complex_relu_layer())
+
+        self.Chebs = torch.nn.Sequential(*chebs)
+
+        last_dim = 2  
+        self.Conv = nn.Conv1d(num_filter*last_dim, label_dim, kernel_size=1)        
+        self.dropout = dropout
+
+    def forward(self, real, imag):
+        real, imag = self.Chebs((real, imag))
+        x = torch.cat((real, imag), dim = -1)
+        
+        if self.dropout > 0:
+            x = F.dropout(x, self.dropout, training=self.training)
+
+        x = x.unsqueeze(0)
+        x = x.permute((0,2,1))
+        x = self.Conv(x)
+        x = F.log_softmax(x, dim=1)
+        return x
